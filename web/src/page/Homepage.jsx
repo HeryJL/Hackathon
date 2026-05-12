@@ -1,66 +1,109 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import gsap from 'gsap';
 import Sidebar from '../composnents/Sidebar';
 import RotatingCircles from '../composnents/RotatingCircles';
-import bgVideo from '../assets/bg-video.mp4';
 
 const HomePage = () => {
   const navigate = useNavigate();
   const [activeSidebarItem, setActiveSidebarItem] = useState('home');
+  const textRef = useRef(null);
+
+  // Animation GSAP pour un effet subtil de flottement sur le texte
+  useEffect(() => {
+    gsap.to(textRef.current, {
+      y: 10,
+      duration: 2,
+      repeat: -1,
+      yoyo: true,
+      ease: "power1.inOut"
+    });
+  }, []);
+
+  // Variantes Framer Motion pour l'entrée
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.3 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { x: -50, opacity: 0 },
+    visible: { 
+      x: 0, 
+      opacity: 1, 
+      transition: { duration: 0.8, ease: "easeOut" } 
+    }
+  };
+
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* Vidéo en fond */}
-      <video 
-        autoPlay 
-        loop 
-        muted 
-        playsInline
-        className="absolute top-0 left-0 w-full h-full object-cover z-0"
-      >
-        <source src={bgVideo} type="video/mp4" />
-      </video>
+    <div className="relative min-h-screen bg-[#1B5E20] overflow-hidden font-sans">
+      {/* Overlay couleur (85% opacité) */}
+      <div className="absolute top-0 left-0 w-full h-full bg-[#1B5E20] opacity-85 z-10" />
       
-      {/* Overlay dégradé pour meilleure lisibilité */}
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-agri-green-950 via-agri-green-900 to-agri-green-800 z-10" />
+      {/* Sidebar - Couleur spécifique 95% */}
+      <div className="relative z-30 bg-[#2E7D32] bg-opacity-95">
+        <Sidebar activeItem={activeSidebarItem} onItemClick={setActiveSidebarItem} />
+      </div>
       
-      {/* Sidebar */}
-      <Sidebar activeItem={activeSidebarItem} onItemClick={setActiveSidebarItem} />
-      
-      {/* Contenu */}
       <div className="relative z-20 flex min-h-screen ml-[70px]">
         
-        {/* Texte à gauche */}
-        <div className="w-1/2 flex flex-col justify-center p-10 text-white">
-          <h1 className="text-5xl font-bold mb-4 drop-shadow-lg">
-            Agriculture <span className="text-green-400">Durable</span><br />
-            & Élevage <span className="text-green-400">Responsable</span>
-          </h1>
+        {/* Section Texte avec Framer Motion */}
+        <motion.div 
+          className="w-1/2 flex flex-col justify-center p-12 text-white"
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+          ref={textRef}
+        >
+          <motion.h1 
+            variants={itemVariants}
+            className="text-7xl font-extrabold mb-6 leading-tight"
+          >
+            Agriculture <span className="text-[#4CAF50]">Durable</span><br />
+            & Élevage <span className="text-[#4CAF50]">Responsable</span>
+          </motion.h1>
           
-          <p className="text-lg mb-6 leading-relaxed drop-shadow-md">
+          <motion.p 
+            variants={itemVariants}
+            className="text-xl mb-8 leading-relaxed max-w-lg text-gray-100"
+          >
             La première plateforme qui connecte directement les producteurs locaux
-            avec les acheteurs passionnés. Des produits frais, de qualité, 
-            issus d'une agriculture respectueuse de l'environnement.
-          </p>
-          <div className="flex gap-4 flex-wrap">
+            avec les acheteurs passionnés.
+          </motion.p>
+
+          <motion.div variants={itemVariants} className="flex gap-5">
             <button
               onClick={() => navigate('/producteur')}
-              className="px-8 py-3 bg-green-800 text-white font-bold rounded-full hover:bg-agri-green-700 hover:-translate-y-1 transition-all duration-300 shadow-lg"
+              className="px-10 py-4 bg-[#4CAF50] text-white font-bold rounded-full hover:bg-[#45a049] transition-colors duration-300 shadow-xl uppercase tracking-wider text-sm"
             >
               Connexion
             </button>
             <button
               onClick={() => navigate('/acheteur')}
-              className="px-8 py-3 bg-white text-green-800 font-bold rounded-full hover:bg-gray-100 hover:-translate-y-1 transition-all duration-300 shadow-lg"
+              className="px-10 py-4 bg-white text-[#2E7D32] font-bold rounded-full hover:bg-gray-100 transition-colors duration-300 shadow-xl uppercase tracking-wider text-sm"
             >
               Inscription
             </button>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
         
-        {/* Cercles à droite */}
-        <div className="w-1/2 flex justify-center items-center">
-          <RotatingCircles />
-        </div>
+        {/* Section Visuelle (Cercles) */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1.2, delay: 0.5 }}
+          className="w-1/2 flex justify-center items-center"
+        >
+          <div className="relative">
+             {/* Un petit effet de halo derrière les cercles */}
+            <div className="absolute inset-0 bg-[#388E3C] blur-[100px] opacity-20 rounded-full" />
+            <RotatingCircles />
+          </div>
+        </motion.div>
       </div>
     </div>
   );
