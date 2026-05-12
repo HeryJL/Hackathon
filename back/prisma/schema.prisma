@@ -55,3 +55,21 @@ model Profile {
   user             User    @relation(fields: [userId], references: [id])
   userId           Int     @unique
 }
+
+
+model Measurement {
+  id           Int      @id @default(autoincrement())
+  entity       String
+  temperature  Float?
+  airHumidity  Float?   @map("air_humidity")
+  soilMoisture Float?   @map("soil_moisture")
+  light        Float?
+  wind         Float?
+  reservoir    Float?
+  pump         Boolean?
+  fan          Boolean?
+  vents        String?
+  ts           DateTime @default(now())
+
+  @@map("greenhouse_measurements")
+}
