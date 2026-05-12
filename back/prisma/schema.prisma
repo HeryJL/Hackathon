@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+// Modèle Utilisateur Central
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  password      String
+  
+  // Par défaut, l'utilisateur est acheteur
+  // Ce booléen permet de savoir s'il a activé son profil producteur
+  isProducteur  Boolean   @default(false)
+  
+  // Relations
+  farms         Farm[]    // Un utilisateur peut avoir plusieurs fermes
+  profile       Profile?  // Informations complémentaires (optionnel)
+  
+  createdAt     DateTime  @default(now())
+}
+
+// Modèle de la Ferme
+model Farm {
+  id          Int      @id @default(autoincrement())
+  nom         String
+  localisation String
+  images      String[] // Tableau d'URLs (Prisma supporte les tableaux sur PostgreSQL)
+  
+  // Statut de certification
+  certifie    Boolean  @default(false)
+  
+  // Relation avec l'utilisateur (le propriétaire)
+  owner       User     @relation(fields: [ownerId], references: [id])
+  ownerId     Int
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Modèle de Profil (Optionnel - pour les infos spécifiques acheteur)
+model Profile {
+  id               Int     @id @default(autoincrement())
+  adresseLivraison String?
+  telephone        String?
+  
+  user             User    @relation(fields: [userId], references: [id])
+  userId           Int     @unique
+}
