@@ -11,29 +11,36 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
-// Modèle Utilisateur Central
+
+// ==================== MODÈLE UTILISATEUR CENTRAL ====================
 model User {
   id            Int       @id @default(autoincrement())
   email         String    @unique
   password      String
   
   // Par défaut, l'utilisateur est acheteur
-  // Ce booléen permet de savoir s'il a activé son profil producteur
   isProducteur  Boolean   @default(false)
   
-  // Relations
-  farms         Farm[]    // Un utilisateur peut avoir plusieurs fermes
-  profile       Profile?  // Informations complémentaires (optionnel)
+  // Relations existantes
+  farms         Farm[]    
+  profile       Profile?
+  
+  // NOUVELLES RELATIONS
+  products      Product[]         // Produits vendus par l'utilisateur
+  orders        Order[]           // Commandes passées (en tant qu'acheteur)
+  sellerRequests SellerRequest[]  // Demandes pour devenir vendeur
+  cart          Cart?             // Panier de l'utilisateur
   
   createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
-// Modèle de la Ferme
+// ==================== MODÈLE FERME ====================
 model Farm {
   id          Int      @id @default(autoincrement())
   nom         String
   localisation String
-  images      String[] // Tableau d'URLs (Prisma supporte les tableaux sur PostgreSQL)
+  images      String[] // Tableau d'URLs
   
   // Statut de certification
   certifie    Boolean  @default(false)
@@ -42,21 +49,144 @@ model Farm {
   owner       User     @relation(fields: [ownerId], references: [id])
   ownerId     Int
   
+  // NOUVELLE RELATION
+  products    Product[] // Produits de cette ferme
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
-// Modèle de Profil (Optionnel - pour les infos spécifiques acheteur)
+// ==================== MODÈLE PRODUIT ====================
+model Product {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float
+  quantity    Int       // Quantité disponible
+  unit        String    // kg, L, pièce, boîte, etc.
+  category    ProductCategory @default(AUTRE)
+  images      String[]  // Tableau d'URLs des images
+  stock       Int       @default(0)
+  isAvailable Boolean   @default(true)
+  isOrganic   Boolean   @default(false)
+  
+  // Relations
+  farmId      Int
+  farm        Farm      @relation(fields: [farmId], references: [id])
+  
+  sellerId    Int
+  seller      User      @relation(fields: [sellerId], references: [id])
+  
+  // Commandes
+  orderItems  OrderItem[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([farmId])
+  @@index([category])
+  @@index([isAvailable])
+  @@index([sellerId])
+}
+
+// ==================== MODÈLE PANIER ====================
+model Cart {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id])
+  items     CartItem[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== MODÈLE ARTICLE DU PANIER ====================
+model CartItem {
+  id        Int     @id @default(autoincrement())
+  cartId    Int
+  cart      Cart    @relation(fields: [cartId], references: [id])
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(1)
+  addedAt   DateTime @default(now())
+  
+  @@unique([cartId, productId])
+}
+
+// ==================== MODÈLE COMMANDE ====================
+model Order {
+  id            Int         @id @default(autoincrement())
+  orderNumber   String      @unique
+  buyerId       Int
+  buyer         User        @relation(fields: [buyerId], references: [id])
+  totalAmount   Float
+  status        OrderStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentMethod PaymentMethod?
+  shippingAddress String?
+  shippingCost  Float       @default(0)
+  discount      Float       @default(0)
+  promoCode     String?
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  shippedAt     DateTime?
+  deliveredAt   DateTime?
+  
+  // Relations
+  items         OrderItem[]
+  
+  @@index([buyerId])
+  @@index([status])
+  @@index([orderNumber])
+}
+
+// ==================== MODÈLE LIGNE DE COMMANDE ====================
+model OrderItem {
+  id         Int     @id @default(autoincrement())
+  orderId    Int
+  order      Order   @relation(fields: [orderId], references: [id])
+  productId  Int
+  product    Product @relation(fields: [productId], references: [id])
+  quantity   Int
+  unitPrice  Float
+  totalPrice Float
+  
+  @@unique([orderId, productId])
+}
+
+// ==================== MODÈLE DEMANDE VENDEUR ====================
+model SellerRequest {
+  id           Int           @id @default(autoincrement())
+  userId       Int
+  user         User          @relation(fields: [userId], references: [id])
+  farmName     String
+  farmLocation String
+  description  String?
+  documentUrl  String?       // Pièce justificative
+  status       RequestStatus @default(PENDING)
+  reviewedBy   Int?          // Admin qui a traité la demande
+  reviewedAt   DateTime?
+  comment      String?       // Commentaire de l'admin
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+}
+
+// ==================== MODÈLE PROFIL ====================
 model Profile {
   id               Int     @id @default(autoincrement())
   adresseLivraison String?
   telephone        String?
+  nomComplet       String?
+  avatar           String?
   
   user             User    @relation(fields: [userId], references: [id])
   userId           Int     @unique
 }
 
-
+// ==================== MODÈLE MESURES (IOT) ====================
 model Measurement {
   id           Int      @id @default(autoincrement())
   entity       String
@@ -72,4 +202,47 @@ model Measurement {
   ts           DateTime @default(now())
 
   @@map("greenhouse_measurements")
+}
+
+// ==================== ÉNUMÉRATIONS ====================
+
+enum ProductCategory {
+  LEGUMES
+  FRUITS
+  VIANDES
+  PRODUITS_LAITIERS
+  OEUFS
+  MIEL
+  CEREALES
+  PLANTES
+  AUTRE
+}
+
+enum OrderStatus {
+  PENDING      // En attente
+  CONFIRMED    // Confirmée
+  PROCESSING   // En traitement
+  SHIPPED      // Expédiée
+  DELIVERED    // Livrée
+  CANCELLED    // Annulée
+}
+
+enum PaymentStatus {
+  PENDING      // En attente
+  PAID         // Payée
+  FAILED       // Échouée
+  REFUNDED     // Remboursée
+}
+
+enum PaymentMethod {
+  CASH           // Espèces
+  BANK_TRANSFER  // Virement bancaire
+  CARD           // Carte bancaire
+  MOBILE_MONEY   // Mobile money
+}
+
+enum RequestStatus {
+  PENDING   // En attente
+  APPROVED  // Approuvé
+  REJECTED  // Rejeté
 }

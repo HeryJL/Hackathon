@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // Icônes SVG
 const HomeIcon = () => (
@@ -44,18 +45,34 @@ const LogoIcon = () => (
 );
 
 const Sidebar = ({ activeItem, onItemClick }) => {
+  const navigate = useNavigate();
+
   const menuItems = [
-    { id: 'home', label: 'Accueil', icon: HomeIcon },
-    { id: 'products', label: 'Produits', icon: ProductsIcon },
-    { id: 'animals', label: 'Élevage', icon: AnimalsIcon },
-    { id: 'machines', label: 'Matériel', icon: MachineryIcon },
+    { id: 'home', label: 'Accueil', icon: HomeIcon, path: '/' },
+    { id: 'products', label: 'Produits', icon: ProductsIcon, path: '/products' },
+    { id: 'animals', label: 'Élevage', icon: AnimalsIcon, path: '/animals' },
+    { id: 'machines', label: 'Matériel', icon: MachineryIcon, path: '/machines' },
   ];
 
+  const handleItemClick = (item) => {
+    // Appeler le callback pour mettre à jour l'item actif
+    if (onItemClick) {
+      onItemClick(item.id);
+    }
+    // Naviguer vers la page correspondante
+    if (item.path) {
+      navigate(item.path);
+    }
+  };
+
   return (
-    <div className="fixed left-0 shadow-lg mt-2 rounded-se-[10px] top-0 h-full w-[70px] bg-green-200/50 backdrop-blur-md flex flex-col items-center py-6 z-50 border-r border-white/20 group hover:w-[90px] transition-all duration-300">
+    <div className="fixed left-0  mt-2 rounded-se-[10px] top-0 h-full w-[70px] bg-green-800 shadow-2xl backdrop-blur-md flex flex-col items-center py-6 z-50 border-r border-white/20 group hover:w-[90px] transition-all duration-300">
       
-      {/* Logo */}
-      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center mb-8 cursor-pointer hover:scale-110 transition-transform">
+      {/* Logo - Redirige vers l'accueil */}
+      <div 
+        className="w-10 h-10 bg-white rounded-xl flex items-center justify-center mb-8 cursor-pointer hover:scale-110 transition-transform"
+        onClick={() => handleItemClick({ id: 'home', path: '/' })}
+      >
         <LogoIcon />
       </div>
       
@@ -66,7 +83,7 @@ const Sidebar = ({ activeItem, onItemClick }) => {
           return (
             <div
               key={item.id}
-              onClick={() => onItemClick(item.id)}
+              onClick={() => handleItemClick(item)}
               className={`
                 relative flex items-center justify-center gap-3 p-2.5 rounded-xl cursor-pointer
                 transition-all duration-300 hover:bg-white/20 w-full
@@ -79,7 +96,7 @@ const Sidebar = ({ activeItem, onItemClick }) => {
               <span className={`
                 text-white text-sm font-medium whitespace-nowrap 
                 opacity-0 group-hover:opacity-100 transition-opacity duration-300
-                absolute top-[50px]
+                absolute top-[40px]
               `}>
                 {item.label}
               </span>
@@ -90,10 +107,16 @@ const Sidebar = ({ activeItem, onItemClick }) => {
       
       {/* User Section - En bas */}
       <div className="flex flex-col items-center gap-4 pt-6 mt-auto border-t border-white/20 w-full">
-        <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer hover:scale-110 transition-transform">
+        <div 
+          className="w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer hover:scale-110 transition-transform"
+          onClick={() => navigate('/profile')}
+        >
           <FarmerIcon />
         </div>
-        <div className="w-9 h-9 rounded-full bg-transparent border-2 border-white flex items-center justify-center cursor-pointer hover:scale-110 transition-transform">
+        <div 
+          className="w-9 h-9 rounded-full bg-transparent border-2 border-white flex items-center justify-center cursor-pointer hover:scale-110 transition-transform"
+          onClick={() => navigate('/cart')}
+        >
           <CartIcon />
         </div>
       </div>
