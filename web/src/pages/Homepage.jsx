@@ -43,13 +43,13 @@ const HomePage = () => {
           </p>
           <div className="flex gap-4 flex-wrap">
             <button
-              onClick={() => navigate('/producteur')}
+              onClick={() => navigate('/login')}
               className="px-8 py-3 bg-green-800 text-white font-bold rounded-full hover:bg-agri-green-700 hover:-translate-y-1 transition-all duration-300 shadow-lg"
             >
               Connexion
             </button>
             <button
-              onClick={() => navigate('/acheteur')}
+              onClick={() => navigate('/register')}
               className="px-8 py-3 bg-white text-green-800 font-bold rounded-full hover:bg-gray-100 hover:-translate-y-1 transition-all duration-300 shadow-lg"
             >
               Inscription

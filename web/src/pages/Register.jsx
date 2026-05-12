@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import api from './api'; // Votre instance Axios avec JWT
+import api from '../service/api'; // Votre instance Axios avec JWT
 
 const Register = () => {
   const [formData, setFormData] = useState({ email: '', password: '', confirmPassword: '' });
