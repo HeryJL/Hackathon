@@ -49,7 +49,7 @@ const HomePage = () => {
         <Sidebar activeItem={activeSidebarItem} onItemClick={setActiveSidebarItem} />
       </div>
       
-      <div className="relative z-20 flex min-h-screen ml-[70px]">
+      <div className="relative z-20 flex min-h-screen ml-16">
         
         {/* Section Texte avec Framer Motion */}
         <motion.div 
@@ -79,16 +79,12 @@ const HomePage = () => {
             <button
               onClick={() => navigate('/login')}
               className="px-8 py-3 bg-green-800 text-white font-bold rounded-full hover:bg-agri-green-700 hover:-translate-y-1 transition-all duration-300 shadow-lg"
-              onClick={() => navigate('/producteur')}
-              className="px-10 py-4 bg-[#4CAF50] text-white font-bold rounded-full hover:bg-[#45a049] transition-colors duration-300 shadow-xl uppercase tracking-wider text-sm"
             >
               Connexion
             </button>
             <button
               onClick={() => navigate('/register')}
               className="px-8 py-3 bg-white text-green-800 font-bold rounded-full hover:bg-gray-100 hover:-translate-y-1 transition-all duration-300 shadow-lg"
-              onClick={() => navigate('/acheteur')}
-              className="px-10 py-4 bg-white text-[#2E7D32] font-bold rounded-full hover:bg-gray-100 transition-colors duration-300 shadow-xl uppercase tracking-wider text-sm"
             >
               Inscription
             </button>

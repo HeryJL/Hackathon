@@ -1,33 +1,128 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Layout from './composnents/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import HomePage from './pages/Homepage';
+import ProductsPage from './pages/ProductsPage';
+import CartPage from './pages/CartPage';
 
 // Composant pour protéger les routes
-// Si pas de token, on redirige vers /login
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   return token ? children : <Navigate replace to="/login" />;
 };
 
+// Composant pour les routes publiques (redirige vers home si déjà connecté)
+const PublicRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  return !token ? children : <Navigate replace to="/" />;
+};
+
 const App = () => {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Routes>
-          {/* Routes Publiques */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+      <Routes>
+        {/* Routes Publiques SANS Layout (pas de sidebar) */}
+        <Route 
+          path="/login" 
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          } 
+        />
+        <Route 
+          path="/register" 
+          element={
+            <PublicRoute>
+              <Register />
+            </PublicRoute>
+          } 
+        />
 
-          {/* Routes Protégées (Accessibles uniquement si connecté) */}
-       
-          
-         
-          <Route path="/" element={<HomePage />} />
+        {/* Routes AVEC Layout (sidebar visible) */}
+        <Route
+          path="/"
+          element={
+            <Layout>
+              <HomePage />
+            </Layout>
+          }
+        />
+        
+        <Route
+          path="/products"
+          element={
+            <Layout>
+              <ProductsPage />
+            </Layout>
+          }
+        />
+        
+        <Route
+          path="/cart"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <CartPage />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
 
-        </Routes>
-      </div>
+        {/* Routes protégées avec Layout */}
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <div className="p-8">
+                  <h1 className="text-2xl font-bold">Mon Profil</h1>
+                </div>
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/animals"
+          element={
+            <Layout>
+              <div className="p-8">
+                <h1 className="text-2xl font-bold">Page Élevage</h1>
+              </div>
+            </Layout>
+          }
+        />
+
+        <Route
+          path="/machines"
+          element={
+            <Layout>
+              <div className="p-8">
+                <h1 className="text-2xl font-bold">Page Matériel</h1>
+              </div>
+            </Layout>
+          }
+        />
+
+        {/* Route 404 - Page non trouvée */}
+        <Route 
+          path="*" 
+          element={
+            <Layout>
+              <div className="p-8 text-center">
+                <h1 className="text-4xl font-bold text-gray-800 mb-4">404</h1>
+                <p className="text-gray-600">Page non trouvée</p>
+                <a href="/" className="text-green-600 hover:underline mt-4 inline-block">
+                  Retour à l'accueil
+                </a>
+              </div>
+            </Layout>
+          } 
+        />
+      </Routes>
     </Router>
   );
 };
