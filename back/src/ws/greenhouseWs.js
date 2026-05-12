@@ -8,12 +8,13 @@ function attachWebSocket(server) {
   });
 
   wss.on('connection', (ws) => {
+    console.log('Node-RED connecté au serveur');
     ws.on('message', async (message) => {
       try {
         const data = JSON.parse(message.toString());
         await service.ingestMeasurement(data);
       } catch (err) {
-        console.error('WS error:', err.message);
+        console.error('Erreur WS:', err.message);
       }
     });
   });

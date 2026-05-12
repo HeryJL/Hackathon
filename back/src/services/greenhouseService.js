@@ -1,12 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+const repo = require('../db/greenhouseRepository');
 
-// On passe l'URL directement au constructeur
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL,
-    },
-  },
-});
-
-module.exports = prisma;
+module.exports = {
+  ingestMeasurement: (data) => repo.insertMeasurement(data),
+  latest: () => repo.getLatest(),
+  history: (limit) => repo.getHistory(limit)
+};
