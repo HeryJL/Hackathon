@@ -1,5 +1,30 @@
 [
     {
+        "id": "50affa298ff23409",
+        "type": "inject",
+        "z": "803be9f154fee998",
+        "name": "Tick",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "0.2",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 130,
+        "y": 80,
+        "wires": [
+            [
+                "fa20c85caebbb935"
+            ]
+        ]
+    },
+    {
         "id": "fa20c85caebbb935",
         "type": "function",
         "z": "803be9f154fee998",
@@ -18,5 +43,26 @@
                 "e5b09f7653dd2031"
             ]
         ]
+    },
+    {
+        "id": "e5b09f7653dd2031",
+        "type": "websocket out",
+        "z": "803be9f154fee998",
+        "name": "Send to Node.js",
+        "server": "",
+        "client": "ws_client_config",
+        "x": 560,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "ws_client_config",
+        "type": "websocket-client",
+        "path": "ws://192.168.2.170:4000/ws/greenhouse",
+        "tls": "",
+        "wholemsg": "false",
+        "hb": "0",
+        "subprotocol": "",
+        "headers": []
     }
 ]
