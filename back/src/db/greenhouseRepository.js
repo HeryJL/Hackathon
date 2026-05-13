@@ -1,40 +1,39 @@
 // src/db/greenhouseRepository.js
-require('dotenv').config();
-const { PrismaClient } = require('@prisma/client');
-const { PrismaPg } = require('@prisma/adapter-pg');
+import 'dotenv/config';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-async function insertMeasurement(data) {
+export async function insertMeasurement(data) {
   return await prisma.measurement.create({
     data: {
       entity: data.entity,
       temperature: data.temperature,
-      airHumidity: data.airHumidity, // Mappe vers air_humidity [cite: 2]
+      airHumidity: data.airHumidity,
       soilMoisture: data.soilMoisture,
       light: data.light,
-      wind: data.wind, // [cite: 3]
+      wind: data.wind,
       reservoir: data.reservoir,
-      pump: data.pump, // [cite: 4]
-      fan: data.fan, // [cite: 5]
+      pump: data.pump,
+      fan: data.fan,
       vents: data.vents,
-      ts: data.ts ? new Date(data.ts) : new Date() // [cite: 6]
+      ts: data.ts ? new Date(data.ts) : new Date()
     }
   });
 }
 
-async function getLatest() {
+export  async function getLatest() {
   return await prisma.measurement.findFirst({
     orderBy: { ts: 'desc' }
   });
 }
 
-async function getHistory(limit = 200) {
+export async function getHistory(limit = 200) {
   return await prisma.measurement.findMany({
     take: limit,
     orderBy: { ts: 'desc' }
   });
 }
 
-module.exports = { insertMeasurement, getLatest, getHistory };

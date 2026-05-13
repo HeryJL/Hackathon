@@ -164,7 +164,7 @@ model SellerRequest {
   farmLocation String
   description  String?
   documentUrl  String?       // Pièce justificative
-  status       RequestStatus @default(PENDING)
+  status       RequestStatus @default(APPROVED)
   reviewedBy   Int?          // Admin qui a traité la demande
   reviewedAt   DateTime?
   comment      String?       // Commentaire de l'admin
