@@ -1,0 +1,75 @@
+[
+    {
+        "id": "803be9f154fee998",
+        "type": "tab",
+        "label": "Serre WS",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "50affa298ff23409",
+        "type": "inject",
+        "z": "803be9f154fee998",
+        "name": "Tick",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "0.2",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 130,
+        "y": 80,
+        "wires": [
+            [
+                "fa20c85caebbb935"
+            ]
+        ]
+    },
+    {
+        "id": "fa20c85caebbb935",
+        "type": "function",
+        "z": "803be9f154fee998",
+        "name": "Simuler serre",
+        "func": "let temp = 19 + Math.random() * 11;\nlet airHum = 45 + Math.random() * 25;\nlet soil = 28 + Math.random() * 50;\nlet light = 150 + Math.random() * 850;\nlet wind = 1 + Math.random() * 16;\nlet reservoir = 40 + Math.random() * 60;\n\nlet pump = flow.get('pump') || false;\nlet fan = flow.get('fan') || false;\nlet vents = flow.get('vents') || 'open';\n\nif (pump) {\n    soil = Math.min(100, soil + 9);\n    reservoir = Math.max(0, reservoir - 0.8);\n} else {\n    soil = Math.max(0, soil - 1.1);\n}\n\nif (fan) {\n    temp = Math.max(10, temp - 1.3);\n    airHum = Math.max(20, airHum - 2.0);\n} else {\n    temp = Math.min(45, temp + 0.6);\n}\n\nif (wind > 12) {\n    vents = 'closed';\n    fan = true;\n} else if (wind < 8 && temp < 28) {\n    vents = 'open';\n}\n\nif (soil < 35) {\n    pump = true;\n} else if (soil > 55) {\n    pump = false;\n}\n\nif (temp > 27 || airHum > 80) {\n    fan = true;\n} else if (temp < 24 && airHum < 70) {\n    fan = false;\n}\n\nflow.set('pump', pump);\nflow.set('fan', fan);\nflow.set('vents', vents);\n\nmsg.payload = {\n    entity: 'serre',\n    temperature: Number(temp.toFixed(1)),\n    airHumidity: Number(airHum.toFixed(1)),\n    soilMoisture: Number(soil.toFixed(1)),\n    light: Math.round(light),\n    wind: Number(wind.toFixed(1)),\n    reservoir: Number(reservoir.toFixed(1)),\n    pump: pump,\n    fan: fan,\n    vents: vents,\n    ts: new Date().toISOString()\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 80,
+        "wires": [
+            [
+                "e5b09f7653dd2031"
+            ]
+        ]
+    },
+    {
+        "id": "e5b09f7653dd2031",
+        "type": "websocket out",
+        "z": "803be9f154fee998",
+        "name": "Send to Node.js",
+        "server": "",
+        "client": "ws_client_config",
+        "x": 560,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "ws_client_config",
+        "type": "websocket-client",
+        "path": "ws://192.168.2.170:4000/ws/greenhouse",
+        "tls": "",
+        "wholemsg": "false",
+        "hb": "0",
+        "subprotocol": "",
+        "headers": []
+    }
+]
