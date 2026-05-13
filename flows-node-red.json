@@ -1,5 +1,12 @@
 [
     {
+        "id": "803be9f154fee998",
+        "type": "tab",
+        "label": "Serre WS",
+        "disabled": false,
+        "info": ""
+    },
+    {
         "id": "50affa298ff23409",
         "type": "inject",
         "z": "803be9f154fee998",
