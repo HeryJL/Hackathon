@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import gsap from 'gsap';
-import Sidebar from '../composnents/Sidebar';
-import RotatingCircles from '../composnents/RotatingCircles';
+import Sidebar from '../components/Sidebar';
+import RotatingCircles from '../components/RotatingCircles';
 
 const HomePage = () => {
   const navigate = useNavigate();

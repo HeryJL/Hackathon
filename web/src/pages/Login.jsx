@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../service/api';
+import image from '../assets/Image/bgHome.jpg';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({ email: '', password: '' });
@@ -25,72 +26,97 @@ const Login = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1500382017468-9049fee74a62?auto=format&fit=crop&q=80')" }}>
-      <div className="absolute inset-0 bg-[#1B5E20] opacity-85"></div>
+  // Style des inputs basé sur l'image (Sombre, arrondi, bordure discrète)
+  const inputStyle = `
+    w-full px-5 py-3 rounded-full bg-[#144718] text-white border border-transparent 
+    focus:border-[#4CAF50] outline-none transition-all duration-300 placeholder:text-gray-500
+  `;
 
-      <div className="relative z-10 max-w-md w-full mx-4 bg-white/95 backdrop-blur-sm p-8 rounded-2xl shadow-2xl transition-all duration-300">
-        <div className="flex justify-center mb-6">
-          <div className="p-3 bg-[#4CAF50] rounded-full text-white shadow-md">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+  return (
+    <div className="min-h-screen shadow-xl w-full flex items-center justify-center bg-[#1B5E20] p-4 font-sans">
+      {/* Container Principal Style "Carte" */}
+      <div className="relative w-full max-w-6xl h-[80vh] bg-[#1B5E20] rounded-[3rem] overflow-hidden shadow-2xl flex flex-col md:flex-row ">
+        
+        {/* SECTION GAUCHE : Blanche avec l'illustration et la courbe */}
+        <div className="hidden md:flex w-1/2 bg-white relative overflow-hidden items-center justify-center p-12">
+          {/* Illustration centrale (similaire à l'arbre de l'image) */}
+          <div className="text-center z-10">
+            <img src={image} alt="" className='object-cover' />
+          </div>
+
+          {/* LA COURBE : L'élément clé du design de l'image */}
+          <div className="absolute -right-24 top-0 bottom-0 w-48 bg-white rounded-[100%] scale-y-125"></div>
+        </div>
+
+        {/* SECTION DROITE : Formulaire sur fond vert #1B5E20 */}
+        <div className="w-full md:w-1/2 flex flex-col justify-center top-6 px-8 md:px-24 py-10 relative">
+          <div className="max-w-sm w-full mx-auto">
+            
+            <h2 className="text-white text-5xl font-bold mb-2 tracking-tight">Se connecter</h2>
+            <p className="text-green-200/60 mb-10 text-sm">Veuillez entrer vos identifiants</p>
+
+            {error && (
+              <div className="mb-6 p-3 bg-red-500/20 border border-red-500/50 text-red-200 text-xs rounded-xl text-center animate-shake">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-6">
+              {/* Email */}
+              <div className="space-y-2">
+                <label className="block text-gray-300 text-sm font-medium ml-4">Email</label>
+                <input
+                  type="email"
+                  value={credentials.email}
+                  onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+                  className={inputStyle}
+                  placeholder="email@gmail.com"
+                />
+              </div>
+
+              {/* Password */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center px-4">
+                  <label className="block text-gray-300 text-sm font-medium">Mot de passe</label>
+                </div>
+                <input
+                  type="password"
+                  value={credentials.password}
+                  onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                  className={inputStyle}
+                  placeholder="••••••"
+                />
+              </div>
+
+              {/* Bouton style "Login to Wifi" */}
+              <button 
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-[#4CAF50] hover:bg-[#5bbd5f] text-white font-bold py-3.5 rounded-full transition-all duration-300 mt-4 shadow-xl shadow-black/20 active:scale-95 disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Connexion...
+                  </span>
+                ) : 'Se connecter'}
+              </button>
+            </form>
+
+            {/* Inscription */}
+            <div className="mt-10 text-center space-y-4">
+              <p className="text-gray-300 text-sm">
+                Deja un compte? 
+                <a href="/register" className="text-[#4CAF50] hover:text-white font-bold transition-colors underline underline-offset-4 decoration-1">
+                  S'inscrire
+                </a>
+              </p>
+            </div>
           </div>
         </div>
-        <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Connexion</h2>
-
-        {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm text-center">{error}</div>}
-
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
-            <div className="relative">
-              <svg className="absolute left-3 top-3 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-              </svg>
-              <input
-                type="email"
-                value={credentials.email}
-                onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-                className="w-full pl-10 pr-4 py-2 border-b-2 border-gray-300 focus:border-[#4CAF50] outline-none bg-transparent transition-colors"
-                placeholder="votre@email.com"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Mot de passe</label>
-            <div className="relative">
-              <svg className="absolute left-3 top-3 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              <input
-                type="password"
-                value={credentials.password}
-                onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                className="w-full pl-10 pr-4 py-2 border-b-2 border-gray-300 focus:border-[#4CAF50] outline-none bg-transparent transition-colors"
-                placeholder="••••••"
-                required
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-[#4CAF50] hover:bg-[#45a049] text-white font-bold py-3 rounded-lg shadow-md transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Connexion...' : 'SE CONNECTER'}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Nouveau sur la plateforme ?{' '}
-          <a href="/register" className="text-[#2E7D32] font-bold hover:underline transition">
-            Créer un compte
-          </a>
-        </p>
       </div>
     </div>
   );

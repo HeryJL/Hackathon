@@ -1,22 +1,29 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './composnents/Layout';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import HomePage from './pages/Homepage';
-import ProductsPage from './pages/ProductsPage';
-import CartPage from './pages/CartPage';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import Layout from "./components/Layout";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import HomePage from "./pages/Homepage";
+import ProductsPage from "./pages/ProductsPage";
+import CartPage from "./pages/CartPage";
+import Profile from "./pages/Profile";
+import Dashboard from "./pages/Producteur/Dashboard";
 
 // Composant pour protéger les routes
 const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   return token ? children : <Navigate replace to="/login" />;
 };
 
 // Composant pour les routes publiques (redirige vers home si déjà connecté)
 const PublicRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  return !token ? children : <Navigate replace to="/" />;
+  const token = localStorage.getItem("token");
+  return !token ? children : <Navigate replace to="/profile" />;
 };
 
 const App = () => {
@@ -24,21 +31,21 @@ const App = () => {
     <Router>
       <Routes>
         {/* Routes Publiques SANS Layout (pas de sidebar) */}
-        <Route 
-          path="/login" 
+        <Route
+          path="/login"
           element={
             <PublicRoute>
               <Login />
             </PublicRoute>
-          } 
+          }
         />
-        <Route 
-          path="/register" 
+        <Route
+          path="/register"
           element={
             <PublicRoute>
               <Register />
             </PublicRoute>
-          } 
+          }
         />
 
         {/* Routes AVEC Layout (sidebar visible) */}
@@ -50,7 +57,7 @@ const App = () => {
             </Layout>
           }
         />
-        
+
         <Route
           path="/products"
           element={
@@ -59,7 +66,7 @@ const App = () => {
             </Layout>
           }
         />
-        
+
         <Route
           path="/cart"
           element={
@@ -77,9 +84,17 @@ const App = () => {
           element={
             <PrivateRoute>
               <Layout>
-                <div className="p-8">
-                  <h1 className="text-2xl font-bold">Mon Profil</h1>
-                </div>
+                <Profile />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/Productor/dashboard"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <Dashboard />
               </Layout>
             </PrivateRoute>
           }
@@ -108,19 +123,22 @@ const App = () => {
         />
 
         {/* Route 404 - Page non trouvée */}
-        <Route 
-          path="*" 
+        <Route
+          path="*"
           element={
             <Layout>
               <div className="p-8 text-center">
                 <h1 className="text-4xl font-bold text-gray-800 mb-4">404</h1>
                 <p className="text-gray-600">Page non trouvée</p>
-                <a href="/" className="text-green-600 hover:underline mt-4 inline-block">
+                <a
+                  href="/"
+                  className="text-green-600 hover:underline mt-4 inline-block"
+                >
                   Retour à l'accueil
                 </a>
               </div>
             </Layout>
-          } 
+          }
         />
       </Routes>
     </Router>
