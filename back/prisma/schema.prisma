@@ -87,6 +87,7 @@ model Product {
   @@index([category])
   @@index([isAvailable])
   @@index([sellerId])
+  cartItems CartItem[]
 }
 
 // ==================== MODÈLE PANIER ====================

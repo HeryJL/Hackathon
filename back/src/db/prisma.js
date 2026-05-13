@@ -1,10 +1,9 @@
-require('dotenv').config();
-const { PrismaClient } = require('@prisma/client');
+// Remplace tes anciens imports par celui-ci :
+const { PrismaClient } = require('@prisma/client'); 
 const { PrismaPg } = require('@prisma/adapter-pg');
-const { Pool } = require('pg'); // Explicitly use the pg Pool for stability
+const { Pool } = require('pg');
 
-const connectionString = process.env.DATABASE_URL;
-const pool = new Pool({ connectionString });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
