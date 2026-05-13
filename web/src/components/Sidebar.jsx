@@ -66,11 +66,11 @@ const Sidebar = ({ activeItem, onItemClick }) => {
   };
 
   return (
-    <div className="fixed left-0  mt-2 rounded-se-[10px] top-0 h-full w-[70px] bg-green-800 shadow-2xl backdrop-blur-md flex flex-col items-center py-6 z-50 border-r border-white/20 group hover:w-[90px] transition-all duration-300">
+    <div className="fixed left-0   rounded-se-[10px] top-0 h-full w-[70px] bg-green-800 shadow-2xl backdrop-blur-md flex flex-col items-center  z-50 border-r border-white/20 group hover:w-[90px] transition-all duration-300">
       
       {/* Logo - Redirige vers l'accueil */}
       <div 
-        className="w-10 h-10 bg-white rounded-xl flex items-center justify-center mb-8 cursor-pointer hover:scale-110 transition-transform"
+        className="w-10 h-10 bg-white rounded-xl flex items-center justify-center my-8 cursor-pointer hover:scale-110 transition-transform"
         onClick={() => handleItemClick({ id: 'home', path: '/' })}
       >
         <LogoIcon />
