@@ -78,7 +78,6 @@ const AddFarmModal = ({ onClose, onSuccess }) => {
           padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>🏡</span>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#fff' }}>Nouvelle ferme</h2>
           </div>
           <button onClick={onClose} style={{
@@ -174,7 +173,7 @@ const AddFarmModal = ({ onClose, onSuccess }) => {
                 onMouseEnter={e => e.currentTarget.style.background = C.lightBg2}
                 onMouseLeave={e => e.currentTarget.style.background = C.lightBg}
               >
-                <span style={{ fontSize: 28, marginBottom: 6 }}>📸</span>
+                <span style={{ fontSize: 28, marginBottom: 6 }}></span>
                 <span style={{ fontSize: 13, color: C.dark, fontWeight: 500 }}>Cliquez pour sélectionner des images</span>
                 <span style={{ fontSize: 12, color: '#999', marginTop: 2 }}>JPG, PNG — max 5 fichiers</span>
                 <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleImageChange} />
