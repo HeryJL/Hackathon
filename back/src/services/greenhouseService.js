@@ -1,7 +1,14 @@
-const repo = require('../db/greenhouseRepository');
+// src/services/greenhouseService.js
+import { insertMeasurement, getLatest, getHistory } from '../db/greenhouseRepository.js';
 
-module.exports = {
-  ingestMeasurement: (data) => repo.insertMeasurement(data),
-  latest: () => repo.getLatest(),
-  history: (limit) => repo.getHistory(limit)
+export const ingestMeasurement = async (data) => {
+  await insertMeasurement(data);
+};
+
+export const getLatestMeasurement = async () => {
+  return await getLatest();
+};
+
+export const getMeasurementsHistory = async (limit) => {
+  return await getHistory(limit);
 };

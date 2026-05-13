@@ -1,7 +1,8 @@
-const router = require('express').Router();
-const controller = require('../controllers/greenhouseController');
+import express from 'express';
+import * as greenhouseController from "../controllers/greenhouseController.js"
+const router = express.Router()
+router.get('/latest', greenhouseController.getLatest);
+router.get('/history', greenhouseController.getHistory);
+router.get('/',greenhouseController.getHistory)
 
-router.get('/latest', controller.getLatest);
-router.get('/history', controller.getHistory);
-
-module.exports = router;
+export default router;

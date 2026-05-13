@@ -1,35 +1,27 @@
-// server.js
-require('dotenv').config();
+import express from 'express';
+import http from 'http';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import 'dotenv/config';
+import router from './src/routes/index.js';
+import { attachWebSocket } from './src/ws/greenhouseWs.js';
+// import * as controller from './src/controllers/greenhouseController.js'; // si non utilisé, commentez
 
-const express = require('express');
-const http = require('http');
-const cors = require('cors');
-const { attachWebSocket } = require('./src/ws/greenhouseWs');
-const controller = require('./src/controllers/greenhouseController');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json());
 
-// Routes API
-app.get('/health', (req, res) => res.json({ ok: true }));
-app.get('/api/greenhouse/latest', controller.getLatest);
-app.get('/api/greenhouse/history', controller.getHistory);
-
 const server = http.createServer(app);
-
-// Activation du WebSocket
 attachWebSocket(server);
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api', router);
 
-
-
-
-//---------------Routes 
-
-app.use('/api/auth', require('./src/routes/authRoutes'));
-//app.use('/api/farms', require('./src/routes/farmRoutes'));
-
-server.listen(process.env.PORT || 4000, () => {
-  console.log(`Server running on ${process.env.PORT || 4000}`);
+const PORT = process.env.PORT || 4000;
+server.listen(PORT, () => {
+  console.log(`Server running on ${PORT}`);
 });

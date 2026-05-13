@@ -1,8 +1,9 @@
-const WebSocket = require('ws');
-const service = require('../services/greenhouseService');
+// src/ws/greenhouseWs.js
+import { WebSocketServer } from 'ws';
+import { ingestMeasurement } from '../services/greenhouseService.js';
 
-function attachWebSocket(server) {
-  const wss = new WebSocket.Server({
+export function attachWebSocket(server) {
+  const wss = new WebSocketServer({
     server,
     path: process.env.WS_PATH || '/ws/greenhouse'
   });
@@ -12,7 +13,7 @@ function attachWebSocket(server) {
     ws.on('message', async (message) => {
       try {
         const data = JSON.parse(message.toString());
-        await service.ingestMeasurement(data);
+        await ingestMeasurement(data);
       } catch (err) {
         console.error('Erreur WS:', err.message);
       }
@@ -21,5 +22,3 @@ function attachWebSocket(server) {
 
   return wss;
 }
-
-module.exports = { attachWebSocket };

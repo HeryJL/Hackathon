@@ -1,22 +1,20 @@
-const service = require('../services/greenhouseService');
+import { getLatestMeasurement, getMeasurementsHistory } from '../services/greenhouseService.js';
 
-async function getLatest(req, res) {
+export async function getLatest(req, res) {
   try {
-    const data = await service.latest();
+    const data = await getLatestMeasurement();
     res.json(data || {});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
 
-async function getHistory(req, res) {
+export async function getHistory(req, res) {
   try {
     const limit = parseInt(req.query.limit || '200', 10);
-    const data = await service.history(limit);
+    const data = await getMeasurementsHistory(limit);
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
-
-module.exports = { getLatest, getHistory };
