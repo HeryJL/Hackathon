@@ -11,7 +11,6 @@ import RegisterScreen from './screens/RegisterScreen';
 import HomePage from './screens/HomePage';
 import ProductsPage from './screens/ProductsPage';
 import CartPage from './screens/CartPage';
-import ProfilPage from './screens/ProfileScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -51,7 +50,7 @@ function MainTabs() {
       />
       <Tab.Screen 
         name="Profil" 
-        component={ProfilPage} 
+        component={LoginScreen} // On met le login ici pour le profil
         options={{ tabBarIcon: ({color}) => <User color={color} size={24} /> }} 
       />
     </Tab.Navigator>
