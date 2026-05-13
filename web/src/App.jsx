@@ -23,7 +23,7 @@ const PrivateRoute = ({ children }) => {
 // Composant pour les routes publiques (redirige vers home si déjà connecté)
 const PublicRoute = ({ children }) => {
   const token = localStorage.getItem("token");
-  return !token ? children : <Navigate replace to="/" />;
+  return !token ? children : <Navigate replace to="/profile" />;
 };
 
 const App = () => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '../service/api'; // Import de votre instance axios personnalisée
 
 // --- Icônes ---
 const ShoppingCartIcon = () => (
@@ -16,144 +17,233 @@ const SearchIcon = () => (
   </svg>
 );
 
-// --- Carousel (On garde Motion ici pour le glissement fluide) ---
+// --- Carousel ---
 const ImageCarousel = () => {
   const slides = [
-    { url: "https://images.unsplash.com/photo-1500595046743-cd271d694d30?q=80&w=2074", title: "Animaux", desc: "Élevage plein air" },
-    { url: "https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?q=80&w=2070", title: "Végétaux", desc: "Récolte du jour" },
-    { url: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=2070", title: "Ferme", desc: "Produits locaux" }
+    { url: "https://images.unsplash.com/photo-1500595046743-cd271d694d30?q=80&w=2074", title: "Produits Frais", desc: "Directement de nos fermes" },
+    { url: "https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?q=80&w=2070", title: "Bio & Naturel", desc: "Sans pesticides" },
+    { url: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=2070", title: "Local", desc: "Soutenez vos producteurs" }
   ];
 
   const [index, setIndex] = useState(0);
 
-  const nextSlide = () => setIndex((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
-  const prevSlide = () => setIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
-
   useEffect(() => {
-    const timer = setInterval(nextSlide, 5000);
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+    }, 5000);
     return () => clearInterval(timer);
   }, [index]);
 
   return (
-    <div className="relative h-[300px] w-full overflow-hidden rounded-[2rem] mb-10 shadow-2xl group border border-gray-200 bg-white">
+    <div className="relative h-[350px] w-full overflow-hidden rounded-[2.5rem] mb-12 shadow-2xl group">
       <AnimatePresence initial={false} mode="wait">
         <motion.div
           key={index}
-          initial={{ x: -300, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: 300, opacity: 0 }}
-          transition={{ duration: 0.6, ease: "easeInOut" }}
+          initial={{ opacity: 0, scale: 1.1 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.8 }}
           className="absolute inset-0"
         >
-          <img src={slides[index].url} alt="Slide" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex flex-col justify-center px-12 text-white">
-            <h2 className="text-4xl font-black">{slides[index].title}</h2>
-            <p className="text-xl opacity-90">{slides[index].desc}</p>
+          <img src={slides[index].url} alt="Banner" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-12 text-white">
+            <motion.h2 initial={{ y: 20 }} animate={{ y: 0 }} className="text-5xl font-black mb-2">{slides[index].title}</motion.h2>
+            <motion.p initial={{ y: 20 }} animate={{ y: 0 }} className="text-xl opacity-90">{slides[index].desc}</motion.p>
           </div>
         </motion.div>
       </AnimatePresence>
-
-      <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-xl p-3 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-white/50">
-        ←
-      </button>
-      <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-xl p-3 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-white/50">
-        →
-      </button>
     </div>
   );
 };
 
+// --- Page des Produits ---
 const ProductsPage = () => {
   const navigate = useNavigate();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [cartCount, setCartCount] = useState(0);
+  const [search, setSearch] = useState("");
 
-  const products = [
-    { id: 1, name: "Veau de Lait", cat: "ANIMAUX", price: 15500, img: "https://images.unsplash.com/photo-1547595628-c61a29f496f0?q=80&w=500" },
-    { id: 2, name: "Panier de Saison", cat: "VEGETAL", price: 12000, img: "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=500" },
-    { id: 3, name: "Poulet Fermier", cat: "ANIMAUX", price: 9500, img: "https://images.unsplash.com/photo-1516467508483-a7212febe31a?q=80&w=500" },
-    { id: 4, name: "Tomates Anciennes", cat: "VEGETAL", price: 4200, img: "https://images.unsplash.com/photo-1592841200221-a6898f307baa?q=80&w=500" },
-  ];
+  const IMAGE_BASE_URL = "http://localhost:4000";
+
+  // 1. Charger les produits (avec recherche si nécessaire)
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      // Utilise l'instance 'api' qui pointe déjà vers /api
+      const response = await api.get('/products', {
+        params: search ? { search } : {}
+      });
+      setProducts(response.data);
+    } catch (error) {
+      console.error("Erreur chargement produits", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. Charger le compte du panier au démarrage
+  const fetchCartCount = async () => {
+    try {
+      const response = await api.get('/cart/cart');
+      const count = response.data.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+      setCartCount(count);
+    } catch (error) {
+      // Silencieux si non connecté
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+    fetchCartCount();
+  }, [search]);
+
+  // 3. Ajouter au panier via le Backend
+  const handleAddToCart = async (productId) => {
+    try {
+      // L'intercepteur dans api.js ajoute automatiquement le token Bearer
+      await api.post('/cart', { productId, quantity: 1 });
+      setCartCount(prev => prev + 1);
+    } catch (error) {
+      if (error.response?.status === 401) {
+        alert("Connectez-vous pour commander des produits !");
+        navigate('/login');
+      } else {
+        alert(error.response?.data?.error || "Stock épuisé ou erreur serveur");
+      }
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] p-6 font-sans text-gray-900">
+    <div className="ml-[70px] min-h-screen bg-gray-50 p-8 font-sans">
       
-      {/* NAVBAR */}
-      <nav className="flex justify-end items-center mb-8 px-2">
-        <div className="flex items-center gap-4">
+      {/* HEADER & NAVIGATION */}
+      <header className="max-w-7xl mx-auto flex justify-between items-center mb-10">
+        <div>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">MARCHÉ FRAIS</h1>
+          <p className="text-sm text-gray-400 font-bold">Produits locaux en direct des fermes</p>
+        </div>
+
+        <div className="flex items-center gap-6">
           <button
-            onClick={() => navigate('/login')}
-            className="text-xs font-bold px-6 py-3 bg-white border-2 border-gray-900 rounded-full hover:bg-gray-900 hover:text-white transition-all shadow-md"
+            onClick={() => navigate('/seller-request')}
+            className="hidden md:block text-xs font-black px-6 py-3 bg-white border-2 border-gray-900 rounded-full hover:bg-gray-900 hover:text-white transition-all shadow-sm"
           >
             DEVENIR PRODUCTEUR
           </button>
-          <button className="relative p-3 bg-white shadow-md rounded-full border border-gray-100 transition-transform active:scale-90">
+          
+          <button 
+            onClick={() => navigate('/cart')}
+            className="relative p-4 bg-white shadow-xl rounded-2xl border border-gray-100 hover:scale-110 transition-transform active:scale-95"
+          >
             <ShoppingCartIcon />
-            <span className="absolute -top-1 -right-1 bg-green-600 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">
-              {cartCount}
-            </span>
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-green-600 text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-full font-black border-2 border-white shadow-md">
+                {cartCount}
+              </span>
+            )}
           </button>
         </div>
-      </nav>
+      </header>
 
-      <div className="max-w-6xl mx-auto">
+      <main className="max-w-7xl mx-auto">
         <ImageCarousel />
 
         {/* BARRE DE RECHERCHE */}
-        <div className="relative mb-12 max-w-xl mx-auto">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2">
+        <div className="relative mb-16 max-w-2xl mx-auto group">
+          <div className="absolute left-5 top-1/2 -translate-y-1/2">
             <SearchIcon />
           </div>
           <input 
             type="text" 
-            placeholder="Rechercher un produit..." 
-            className="w-full pl-12 pr-6 py-4 bg-white border border-gray-200 shadow-xl rounded-2xl focus:ring-2 focus:ring-green-500 transition-all outline-none"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Pommes de terre, Miel, Ferme du Sud..." 
+            className="w-full pl-14 pr-8 py-5 bg-white border border-gray-200 shadow-2xl rounded-[2rem] focus:ring-4 focus:ring-green-500/10 transition-all outline-none text-lg font-medium"
           />
         </div>
 
-        {/* GRILLE PRODUITS (SANS GSAP / SANS MOTION) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              className="group bg-white rounded-[2rem] overflow-hidden shadow-lg border border-gray-100 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
-            >
-              {/* Image Container */}
-              <div className="h-64 overflow-hidden relative">
-                <img 
-                  src={product.img} 
-                  alt={product.name} 
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-                <div className="absolute top-4 left-4">
-                  <span className="bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-bold text-gray-800 shadow-sm border border-gray-100">
-                    {product.cat}
-                  </span>
-                </div>
-              </div>
-
-              {/* Contenu de la Carte */}
-              <div className="p-6">
-                <h4 className="text-xl font-bold text-gray-800 mb-1">{product.name}</h4>
-                <p className="text-sm text-gray-400 mb-6 font-medium">Production locale</p>
-                
-                <div className="flex justify-between items-center pt-2">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Prix</span>
-                    <span className="text-2xl font-black text-green-700">{product.price.toLocaleString()} AR</span>
+        {/* GRILLE DE PRODUITS */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-600"></div>
+            <p className="mt-4 text-gray-400 font-bold uppercase tracking-widest text-xs">Chargement des récoltes...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {products.map((product) => (
+              <motion.div
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                key={product.id}
+                className="group bg-white rounded-[2.5rem] overflow-hidden shadow-lg border border-gray-50 hover:shadow-2xl transition-all duration-500"
+              >
+                {/* Image du Produit */}
+                <div className="h-64 relative overflow-hidden bg-gray-100">
+                  <img 
+                    src={product.images?.length > 0 
+                      ? `${IMAGE_BASE_URL}/${product.images[0]}` 
+                      : "https://via.placeholder.com/400x400?text=Produit"} 
+                    alt={product.name} 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute top-4 left-4">
+                    <span className="bg-white/95 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter text-gray-800 shadow-sm">
+                      {product.category || "Ferme"}
+                    </span>
                   </div>
-                  
-                  <button
-                    onClick={() => setCartCount(prev => prev + 1)}
-                    className="p-4 bg-gray-900 text-white rounded-2xl hover:bg-green-600 active:scale-90 transition-all shadow-lg"
-                  >
-                    <ShoppingCartIcon />
-                  </button>
+                  {product.isOrganic && (
+                    <div className="absolute top-4 right-4">
+                      <span className="bg-green-600 text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg">BIO</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+
+                {/* Détails */}
+                <div className="p-7">
+                  <h4 className="text-xl font-bold text-gray-800 mb-1 group-hover:text-green-700 transition-colors">{product.name}</h4>
+                  <p className="text-xs text-gray-400 mb-6 font-bold uppercase tracking-widest flex items-center gap-1">
+                    <span className="text-lg">🚜</span> {product.farm?.nom || "Provenance directe"}
+                  </p>
+                  
+                  <div className="flex justify-between items-center pt-2">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Prix</span>
+                      <span className="text-2xl font-black text-gray-900">
+                        {product.price.toLocaleString()} <span className="text-sm font-medium text-gray-500">AR</span>
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-bold">par {product.unit || "unité"}</span>
+                    </div>
+                    
+                    <button
+                      onClick={() => handleAddToCart(product.id)}
+                      disabled={product.stock <= 0}
+                      className={`p-4 rounded-2xl transition-all shadow-lg active:scale-90 ${
+                        product.stock > 0 
+                        ? "bg-gray-900 text-white hover:bg-green-600 hover:shadow-green-200" 
+                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      }`}
+                    >
+                      {product.stock > 0 ? <ShoppingCartIcon /> : <span className="text-[10px] font-black">RUPTURE</span>}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Message si aucun résultat */}
+        {!loading && products.length === 0 && (
+          <div className="text-center py-32 bg-white rounded-[3rem] shadow-inner border border-dashed border-gray-200">
+            <span className="text-6xl mb-4 block">🍃</span>
+            <h3 className="text-2xl font-bold text-gray-800">Aucun produit trouvé</h3>
+            <p className="text-gray-400 mt-2">Essayez d'élargir votre recherche ou de changer de catégorie.</p>
+            <button onClick={() => setSearch("")} className="mt-6 text-green-700 font-black underline">Voir tout le catalogue</button>
+          </div>
+        )}
+      </main>
     </div>
   );
 };
