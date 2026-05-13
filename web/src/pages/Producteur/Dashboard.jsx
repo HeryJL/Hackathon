@@ -47,7 +47,7 @@ const Toast = ({ message, type, onDone }) => {
   );
 };
 
-const EspaceProducteur = () => {
+const Dashboard = () => {
   const navigate = useNavigate();
   const [farms, setFarms] = useState([]);
   const [products, setProducts] = useState([]);
@@ -58,28 +58,74 @@ const EspaceProducteur = () => {
   const [showAddFarm, setShowAddFarm] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [toast, setToast] = useState(null);
+  const [measurements, setMeasurements] = useState([]);
 
   const showToast = (message, type = 'success') => setToast({ message, type });
 
-  // eslint-disable-next-line react-hooks/immutability
+  // ─── Remplacer le useEffect WebSocket dans EspaceProducteur.jsx ───────────────
+// (vers ligne 40-60 de votre fichier)
+
+useEffect(() => {
+  let ws;
+  let reconnectTimer;
+
+  const connect = () => {
+    const wsUrl = (import.meta.env.VITE_WS_URL || 'ws://localhost:4000')
+      + '/ws/greenhouse?client=frontend';
+
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => console.log('WS frontend connecté');
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+
+        // Format broadcasté par le nouveau greenhouseWs.js : { type, payload }
+        // Fallback : si l'ancienne version envoie les données brutes directement
+        const data = msg.type === 'MEASUREMENT' ? msg.payload : msg;
+
+        setMeasurements(prev => [data, ...prev].slice(0, 50));
+      } catch (e) {
+        console.error('Erreur parsing WS :', e);
+      }
+    };
+
+    ws.onerror = (err) => console.error('WebSocket erreur :', err);
+
+    ws.onclose = () => {
+      console.log('WebSocket fermé, reconnexion dans 3s…');
+      reconnectTimer = setTimeout(connect, 3000);
+    };
+  };
+
+  connect();
+
+  return () => {
+    clearTimeout(reconnectTimer);
+    ws?.close();
+  };
+}, []);
+
   useEffect(() => { fetchData(); }, []);
 
+ 
+
   const fetchData = async () => {
-    try {
-      const [farmsRes, productsRes] = await Promise.all([
-        api.get('/farms'),
-        api.get('/products'),
-      ]);
-      setFarms(farmsRes.data);
-      setProducts(productsRes.data);
-      console.log(farmsRes.data)
-      console.log(productsRes.data)
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const [farmsRes, productsRes] = await Promise.all([
+      api.get('/farms'),
+      api.get('/products'),
+    ]);
+    console.log('Structure d\'une ferme →', farmsRes.data[0]); // 👈 regardez ce qui s'affiche
+    setFarms(farmsRes.data);
+    setProducts(productsRes.data);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleFarmCreated = (newFarm) => {
     setFarms(prev => [newFarm, ...prev]);
@@ -101,10 +147,16 @@ const EspaceProducteur = () => {
     </div>
   );
 
+  // ✅ FIX PRINCIPAL : measurements est maintenant transmis à FarmDetail
   if (selectedFarm) return (
     <div style={{ minHeight: '100vh', background: C.lightBg, padding: '28px 16px' }}>
       <div style={{ maxWidth: 760, margin: '0 auto' }}>
-        <FarmDetail farm={selectedFarm} products={products} onBack={() => setSelectedFarm(null)} />
+        <FarmDetail
+          farm={selectedFarm}
+          products={products}
+          measurements={measurements}
+          onBack={() => setSelectedFarm(null)}
+        />
       </div>
     </div>
   );
@@ -171,7 +223,7 @@ const EspaceProducteur = () => {
                   >
                     {farm.images?.[0] ? (
                       <div style={{ height: 110, overflow: 'hidden' }}>
-                        <img src={`http://localhost:3000/${farm.images[0]}`} alt={farm.nom} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={`http://localhost:4000/${farm.images[0]}`} alt={farm.nom} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       </div>
                     ) : (
                       <div style={{ background: `linear-gradient(135deg, ${C.primary}22, ${C.dark}11)`, padding: '18px 20px 14px', borderBottom: `1px solid ${C.border}` }}>
@@ -250,7 +302,7 @@ const EspaceProducteur = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{ width: 38, height: 38, borderRadius: 8, background: C.lightBg2, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, flexShrink: 0 }}>
                         {product.images?.[0]
-                          ? <img src={`http://localhost:3000/${product.images[0]}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 7 }} />
+                          ? <img src={`http://localhost:4000/${product.images[0]}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 7 }} />
                           : '🌿'}
                       </div>
                       <div>
@@ -288,4 +340,4 @@ const EspaceProducteur = () => {
   );
 };
 
-export default EspaceProducteur;
+export default Dashboard;
