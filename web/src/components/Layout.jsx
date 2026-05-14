@@ -18,7 +18,7 @@ const Layout = ({ children }) => {
   }, [location]);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex max-h-screen">
       {/* Sidebar fixe */}
       <Sidebar activeItem={activeSidebarItem} onItemClick={setActiveSidebarItem} />
       
