@@ -35,7 +35,7 @@ const ImageCarousel = () => {
   }, [index]);
 
   return (
-    <div className="relative h-[350px] w-full overflow-hidden rounded-[2.5rem] mb-12 shadow-2xl group">
+    <div className="relative h-[480px] w-full overflow-hidden rounded-[2.5rem] mb-12 shadow-2xl group">
       <AnimatePresence initial={false} mode="wait">
         <motion.div
           key={index}
@@ -115,10 +115,10 @@ const ProductsPage = () => {
   };
 
   return (
-    <div className="ml-[70px] min-h-screen bg-gray-50 p-8 font-sans">
+    <div className="ml-20 min-h-screen bg-gray-50 p-8 font-sans">
       
       {/* HEADER & NAVIGATION */}
-      <header className="max-w-7xl mx-auto flex justify-between items-center mb-10">
+      <header className=" mx-auto flex justify-between items-center mb-10">
         <div>
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">MARCHÉ FRAIS</h1>
           <p className="text-sm text-gray-400 font-bold">Produits locaux en direct des fermes</p>
@@ -146,7 +146,7 @@ const ProductsPage = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto">
+      <main className=" mx-auto">
         <ImageCarousel />
 
         {/* BARRE DE RECHERCHE */}
