@@ -1,267 +1,320 @@
-import React, { useEffect, useState } from 'react';
-import Chart from 'react-apexcharts';
-import {
-  FaTemperatureHigh, FaWater, FaWind, FaLightbulb,
-  FaTint, FaArrowLeft, FaPiggyBank, FaCogs, FaSync,
-} from 'react-icons/fa';
-import { GiBarn } from 'react-icons/gi';
-import { COLORS as C } from '../../constants/theme';
+// src/components/FarmDetail/FarmDetail.jsx
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaArrowLeft, FaSync, FaBell, FaEdit } from 'react-icons/fa';
 import ProductRow from '../Product/ProductRow';
+import useNodeRedWS from '../../hooks/useNodeRedWS'
+import { sensorConfig } from '../../config/sensorConfig';
+import { getEntityIcon, checkAlerts, statusMap, SectionHeader, pillStyle } from '../../utils/utils';
+import { ActuatorPanel } from './ActuatorPanel';
+import { AlertToast } from './AlertToast';
+import { MetricCard } from './MetricCard';
+import { ChartCard } from './ChartCard';
+import { EditFarmModal } from './EditFarmModal';
 
-const sensorConfig = [
-  { key: 'temperature', label: 'Température', unit: '°C',  min: 15,  max: 35,   color: '#E8651A', icon: <FaTemperatureHigh />, chartType: 'area' },
-  { key: 'airHumidity', label: 'Humidité Air', unit: '%',  min: 40,  max: 85,   color: '#3B82F6', icon: <FaTint />,            chartType: 'area' },
-  { key: 'soilMoisture',label: 'Humidité Sol', unit: '%',  min: 30,  max: 70,   color: '#22C55E', icon: <FaWater />,           chartType: 'area' },
-  { key: 'light',       label: 'Luminosité',   unit: 'lux',min: 100, max: 1000, color: '#F59E0B', icon: <FaLightbulb />,      chartType: 'bar'  },
-  { key: 'wind',        label: 'Vent',          unit: 'km/h',min: 0,  max: 25,  color: '#8B5CF6', icon: <FaWind />,            chartType: 'bar'  },
-  { key: 'reservoir',   label: 'Cuve',          unit: '%',  min: 20,  max: 100,  color: '#06B6D4', icon: <FaWater />,           chartType: 'area' },
-];
-
-const randomValue = (min, max) => parseFloat((min + Math.random() * (max - min)).toFixed(1));
-
-const generateRandomMeasure = (previousMeasure = null) => {
-  const now = new Date();
-  const measure = { ts: now.toISOString() };
-  sensorConfig.forEach(sensor => {
-    let value;
-    if (previousMeasure && previousMeasure[sensor.key] !== undefined) {
-      const prev = previousMeasure[sensor.key];
-      const delta = (Math.random() - 0.5) * 0.15 * prev;
-      value = Math.min(sensor.max, Math.max(sensor.min, prev + delta));
-    } else {
-      value = randomValue(sensor.min, sensor.max);
-    }
-    measure[sensor.key] = parseFloat(value.toFixed(1));
-  });
-  return measure;
-};
-
-const generateInitialHistory = (count, entitySeed = 0) => {
-  const history = [];
-  let lastMeasure = null;
-  for (let i = count; i > 0; i--) {
-    const ts = new Date(Date.now() - i * 60000);
-    const measure = { ts: ts.toISOString() };
-    sensorConfig.forEach(sensor => {
-      let value;
-      if (lastMeasure && lastMeasure[sensor.key] !== undefined) {
-        const prev = lastMeasure[sensor.key];
-        const delta = (Math.random() - 0.5) * 0.15 * prev;
-        value = Math.min(sensor.max, Math.max(sensor.min, prev + delta));
-      } else {
-        const seed = (entitySeed + i) % 100 / 100;
-        value = sensor.min + (sensor.max - sensor.min) * seed;
-      }
-      measure[sensor.key] = parseFloat(value.toFixed(1));
-    });
-    history.unshift(measure);
-    lastMeasure = measure;
-  }
-  return history;
-};
-
-function getEntityIcon(type) {
-  switch (type?.toLowerCase()) {
-    case 'porcherie': return <FaPiggyBank />;
-    case 'etable':    return <GiBarn />;
-    default:          return <FaCogs />;
-  }
-}
-
-function getStatusColor(sensor, value) {
-  const ratio = (value - sensor.min) / (sensor.max - sensor.min);
-  if (ratio < 0.25) return '#EF4444';
-  if (ratio > 0.85) return '#F59E0B';
-  return '#22C55E';
-}
-
-const FarmDetail = ({ farm, products, onBack }) => {
+const FarmDetail = ({ farm, products, onBack, onFarmUpdate }) => {
   const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [seenKeys, setSeenKeys] = useState(new Set());
+  const [wsStatus, setWsStatus] = useState('connecting');
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const toastId = useRef(0);
+  const alertCooldown = useRef({});
 
-  const generateNewMeasure = () => {
-    setHistory(prev => {
-      const newMeasure = generateRandomMeasure(prev[0] || null);
-      return [newMeasure, ...prev].slice(0, 60);
-    });
-    setLastUpdated(new Date());
-  };
-
+  // Responsive
   useEffect(() => {
-    setLoading(true);
-    const seed = farm?.entity?.length || 0;
-    setHistory(generateInitialHistory(60, seed));
-    setLastUpdated(new Date());
-    setLoading(false);
-  }, [farm?.entity]);
-
-  useEffect(() => {
-    const interval = setInterval(generateNewMeasure, 30000);
-    return () => clearInterval(interval);
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, []);
+
+  const addAlert = useCallback((alert) => {
+    const now = Date.now();
+    const key = alert.sensor.key;
+    if (alertCooldown.current[key] && now - alertCooldown.current[key] < 30000) return;
+    alertCooldown.current[key] = now;
+    const id = ++toastId.current;
+    setToasts(prev => [...prev.slice(-3), { ...alert, id }]);
+  }, []);
+
+  const dismissToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const handleMessage = useCallback((data) => {
+    setSeenKeys(prev => {
+      const next = new Set(prev);
+      sensorConfig.forEach(s => { if (data[s.key] !== undefined) next.add(s.key); });
+      return next;
+    });
+    setHistory(prev => [data, ...prev].slice(0, 60));
+    setLastUpdated(new Date());
+    const alerts = checkAlerts(data);
+    alerts.forEach(a => addAlert(a));
+  }, [addAlert]);
+
+  const { reconnect } = useNodeRedWS({
+    entity: farm?.entity,
+    onMessage: handleMessage,
+    onStatus: setWsStatus,
+  });
+
+  useEffect(() => {
+    setHistory([]);
+    setSeenKeys(new Set());
+    setToasts([]);
+    alertCooldown.current = {};
+  }, [farm?.entity]);
 
   const lastMeasure = history[0] ?? {};
   const chartPoints = [...history].reverse().slice(-20);
+  const s = statusMap[wsStatus] || statusMap.connecting;
+  const visibleSensors = sensorConfig.filter(sc => seenKeys.has(sc.key));
 
-  if (!farm) return <div style={{ padding: 40 }}>Ferme introuvable...</div>;
+  if (!farm) return <div style={{ padding: 40, color: '#94A3B8' }}>Ferme introuvable…</div>;
 
   return (
-    <div style={s.root}>
-      <div style={s.topBar}>
-        <button onClick={onBack} style={s.backBtn}>
-          <FaArrowLeft size={13} /><span>Retour</span>
-        </button>
-        <div style={s.syncInfo}>
-          <FaSync size={11} color="#22C55E" />
-          <span>MAJ toutes les 30s</span>
-          {lastUpdated && <span style={s.syncTime}>· {lastUpdated.toLocaleTimeString()}</span>}
+    <div style={{ fontFamily: "'Inter', system-ui, sans-serif", position: 'relative' }}>
+      {/* Toasts */}
+      <div style={{ position: 'fixed', bottom: 28, right: isMobile ? 12 : 28, zIndex: 4000, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end', maxWidth: 360, width: '90vw' }}>
+        <AnimatePresence>
+          {toasts.map(t => (
+            <AlertToast key={t.id} alert={t} onDismiss={() => dismissToast(t.id)} />
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Top bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <motion.button whileHover={{ x: -3 }} whileTap={{ scale: 0.96 }} onClick={onBack}
+          style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 12, padding: '9px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#475569', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <FaArrowLeft size={12} /> Retour
+        </motion.button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <AnimatePresence>
+            {toasts.length > 0 && (
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '6px 12px', fontSize: 12, fontWeight: 700, color: '#DC2626' }}>
+                <motion.span animate={{ scale: [1, 1.3, 1] }} transition={{ repeat: Infinity, duration: 1.5 }}>
+                  <FaBell size={12} />
+                </motion.span>
+                {toasts.length} alerte{toasts.length > 1 ? 's' : ''}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.button whileTap={{ scale: 0.96 }} onClick={reconnect}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 700, background: s.bg, border: `1px solid ${s.border}`, color: s.color, borderRadius: 10, padding: '7px 14px', cursor: 'pointer' }}>
+            <motion.div
+              animate={wsStatus === 'connected' ? { opacity: [1, 0.3, 1] } : {}}
+              transition={{ repeat: Infinity, duration: 2 }}
+              style={{ width: 8, height: 8, borderRadius: '50%', background: s.dot }}
+            />
+            {s.label}
+          </motion.button>
+
+          {lastUpdated && (
+            <span style={{ fontSize: 11, color: '#94A3B8' }}>MAJ : {lastUpdated.toLocaleTimeString('fr-FR')}</span>
+          )}
         </div>
       </div>
 
-      <div style={s.heroCard}>
-        <div style={s.heroBg} />
-        <div style={s.heroInner}>
-          <div style={s.iconCircle}>{getEntityIcon(farm.entity)}</div>
-          <div style={{ flex: 1 }}>
-            <p style={s.heroSub}>{farm.entity}</p>
-            <h1 style={s.heroTitle}>{farm.nom}</h1>
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <span style={pill('#D1FAE5', '#065F46')}>Données simulées</span>
-              {farm.certifie && <span style={pill('#FEF3C7', '#92400E')}>Bio Certifié</span>}
-            </div>
+      {/* Hero */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        style={{ position: 'relative', borderRadius: 28, overflow: 'hidden', marginBottom: 36, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', minHeight: isMobile ? 340 : 440 }}>
+        {farm.images?.[0] ? (
+          <img src={`http://localhost:3000/${farm.images[0]}`} alt={farm.nom}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+        ) : (
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #14532D 0%, #166534 45%, #15803D 100%)' }}>
+            <div style={{ position: 'absolute', right: -60, top: -60, width: 320, height: 320, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+          </div>
+        )}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.82) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(0,0,0,0.3) 0%, transparent 55%)' }} />
+        <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: isMobile ? '28px 22px' : '40px 44px' }}>
+          <div style={{ position: 'absolute', top: isMobile ? 18 : 24, right: isMobile ? 18 : 28, display: 'flex', gap: 12 }}>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowEditModal(true)}
+              style={{
+                background: 'rgba(0,0,0,0.45)',
+                backdropFilter: 'blur(12px)',
+                borderRadius: 999,
+                padding: '7px 12px',
+                border: '1px solid rgba(255,255,255,0.15)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                color: '#fff',
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              <FaEdit size={14} />
+              Modifier
+            </motion.button>
+            <motion.div animate={wsStatus === 'connected' ? { opacity: [1, 0.5, 1] } : {}} transition={{ repeat: Infinity, duration: 2 }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(12px)', borderRadius: 999, padding: '7px 16px', border: '1px solid rgba(255,255,255,0.15)' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.dot, boxShadow: wsStatus === 'connected' ? `0 0 8px ${s.dot}` : 'none' }} />
+              <span style={{ fontSize: 12, color: '#fff', fontWeight: 700 }}>{s.label}</span>
+            </motion.div>
+          </div>
+          <div style={{ width: 52, height: 52, background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(12px)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: '#fff', marginBottom: 14 }}>
+            {getEntityIcon(farm.entity)}
+          </div>
+          <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+            {farm.entity || 'Ferme'}
+          </p>
+          <h1 style={{ margin: '0 0 10px', fontSize: isMobile ? 28 : 42, fontWeight: 900, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1.05, textShadow: '0 2px 12px rgba(0,0,0,0.4)', maxWidth: 600 }}>
+            {farm.nom}
+          </h1>
+          {farm.localisation && (
+            <p style={{ margin: '0 0 18px', fontSize: 14, color: 'rgba(255,255,255,0.65)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              📍 {farm.localisation}
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <span style={pillStyle('rgba(52,211,153,0.2)', '#6EE7B7', '1px solid rgba(52,211,153,0.35)')}>
+              {visibleSensors.length} capteur{visibleSensors.length !== 1 ? 's' : ''} actif{visibleSensors.length !== 1 ? 's' : ''}
+            </span>
+            {farm.certifie && <span style={pillStyle('rgba(251,191,36,0.2)', '#FDE68A', '1px solid rgba(251,191,36,0.35)')}>🌿 Bio Certifié</span>}
+            {history.length > 0 && (
+              <span style={pillStyle('rgba(255,255,255,0.12)', 'rgba(255,255,255,0.85)', '1px solid rgba(255,255,255,0.2)')}>
+                {history.length} relevé{history.length > 1 ? 's' : ''}
+              </span>
+            )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div style={s.sectionHeader}>
-        <div style={s.sectionDot} /><h2 style={s.sectionTitle}>Valeurs actuelles</h2>
-      </div>
+      {/* Attente données */}
+      {history.length === 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          style={{ padding: '50px 24px', textAlign: 'center', background: '#F9FAFB', borderRadius: 20, border: '1.5px dashed #E5E7EB', marginBottom: 32 }}>
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}>
+            <FaSync size={28} color="#94A3B8" style={{ margin: '0 auto 14px', display: 'block' }} />
+          </motion.div>
+          <p style={{ color: '#94A3B8', fontSize: 14, margin: 0 }}>
+            {wsStatus === 'connected' ? 'En attente des données Node-RED…' : `WebSocket : ${s.label}`}
+          </p>
+          <p style={{ color: '#CBD5E1', fontSize: 12, margin: '6px 0 0' }}>
+            URL : <code style={{ background: '#F1F5F9', padding: '2px 6px', borderRadius: 4 }}>ws://localhost:1880/ws/sensor</code>
+          </p>
+        </motion.div>
+      )}
 
-      {loading ? <div style={s.skeleton}>Chargement…</div> : (
-        <div style={s.metricsGrid}>
-          {sensorConfig.map(sensor => {
-            const val = lastMeasure[sensor.key];
-            const status = val !== undefined ? getStatusColor(sensor, val) : '#999';
-            const pct = val !== undefined ? Math.round(((val - sensor.min) / (sensor.max - sensor.min)) * 100) : 0;
-            return (
-              <div key={sensor.key} style={s.metricCard}>
-                <div style={{ ...s.metricIconWrap, background: sensor.color + '18' }}>
-                  <span style={{ color: sensor.color, fontSize: 18 }}>{sensor.icon}</span>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={s.metricLabel}>{sensor.label}</p>
-                  <p style={{ ...s.metricValue, color: sensor.color }}>
-                    {val !== undefined ? val : '—'}<span style={s.metricUnit}>{sensor.unit}</span>
-                  </p>
-                  <div style={s.progressTrack}>
-                    <div style={{ ...s.progressBar, width: `${pct}%`, background: status }} />
+      {/* Actionneurs */}
+      {history.length > 0 && <ActuatorPanel lastMeasure={lastMeasure} />}
+
+      {/* Métriques */}
+      {visibleSensors.length > 0 && (
+        <>
+          <SectionHeader title="Valeurs actuelles" />
+          <motion.div
+            initial="hidden" animate="visible"
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.06 } } }}
+            style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fill, minmax(210px, 1fr))', gap: isMobile ? 10 : 14, marginBottom: 36 }}
+          >
+            {visibleSensors.map(sensor => (
+              <motion.div key={sensor.key} variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}>
+                <MetricCard sensor={sensor} value={lastMeasure[sensor.key]} seen={seenKeys.has(sensor.key)} />
+              </motion.div>
+            ))}
+          </motion.div>
+        </>
+      )}
+
+      {/* Graphiques + Produits */}
+      {history.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 300px', gap: 24, alignItems: 'start' }}>
+          <div>
+            <SectionHeader title={`Évolution — ${chartPoints.length} derniers relevés`} />
+            <motion.div initial="hidden" animate="visible"
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
+              style={{ display: 'grid', gap: 18 }}>
+              {sensorConfig.map(sensor => (
+                <motion.div key={sensor.key} variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}>
+                  <ChartCard sensor={sensor} chartPoints={chartPoints} lastValue={lastMeasure[sensor.key]} />
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+          {!isMobile && (
+            <div style={{ position: 'sticky', top: 80 }}>
+              <SectionHeader title="Produits associés" />
+              {(() => {
+                const fp = products.filter(p => p.farmId === farm.id);
+                return (
+                  <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #F1F5F9', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                    <div style={{ padding: '14px 18px', borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#6B7280' }}>{fp.length} produit{fp.length !== 1 ? 's' : ''}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, background: '#ECFDF5', color: '#065F46', padding: '3px 10px', borderRadius: 999 }}>
+                        Stock : {fp.reduce((s, p) => s + (p.stock || 0), 0)}
+                      </span>
+                    </div>
+                    <div style={{ maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', padding: '8px 0' }}>
+                      {fp.length > 0 ? fp.map((p, i) => (
+                        <motion.div key={p.id}
+                          initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
+                          whileHover={{ background: '#F9FAFB' }}
+                          style={{ padding: '12px 18px', borderBottom: i < fp.length - 1 ? '1px solid #F9FAFB' : 'none', transition: 'background 0.15s', cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 44, height: 44, borderRadius: 12, background: '#ECFDF5', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {p.images?.[0] ? <img src={`http://localhost:3000/${p.images[0]}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <span>🌿</span>}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name || p.nom}</p>
+                              <p style={{ margin: '2px 0 0', fontSize: 11, color: '#9CA3AF' }}>
+                                {p.price || p.prix} Ar · stock : <strong style={{ color: (p.stock || 0) > 10 ? '#059669' : '#F59E0B' }}>{p.stock || 0}</strong>
+                              </p>
+                            </div>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: (p.stock || 0) > 10 ? '#22C55E' : '#F59E0B', flexShrink: 0 }} />
+                          </div>
+                        </motion.div>
+                      )) : (
+                        <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9CA3AF' }}>
+                          <p style={{ fontSize: 28, margin: '0 0 8px' }}>🌱</p>
+                          <p style={{ fontSize: 13, margin: 0 }}>Aucun produit</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })()}
+            </div>
+          )}
         </div>
       )}
 
-      <div style={{ marginTop: 36 }}>
-        <div style={s.sectionHeader}>
-          <div style={s.sectionDot} /><h2 style={s.sectionTitle}>Évolution — 20 derniers relevés</h2>
+      {isMobile && history.length > 0 && (
+        <div style={{ marginTop: 36 }}>
+          <SectionHeader title="Produits associés" />
+          {products.filter(p => p.farmId === farm.id).map(p => (
+            <motion.div key={p.id} variants={{ hidden: { opacity: 0, x: -10 }, visible: { opacity: 1, x: 0 } }}>
+              <ProductRow product={p} />
+            </motion.div>
+          ))}
         </div>
-        <div style={s.chartsGrid}>
-          {sensorConfig.map(sensor => {
-            const chartData = chartPoints.map(p => p[sensor.key] ?? null);
-            const isBar = sensor.chartType === 'bar';
-            const options = {
-              chart: { id: `chart-${sensor.key}`, toolbar: { show: false }, background: 'transparent', animations: { enabled: true, speed: 600 } },
-              stroke: { curve: 'smooth', width: isBar ? 0 : 2.5 },
-              xaxis: {
-                categories: chartPoints.map(m => new Date(m.ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })),
-                labels: { style: { fontSize: '9px', colors: '#94A3B8' }, rotate: -45, hideOverlappingLabels: true },
-                axisBorder: { show: false }, axisTicks: { show: false },
-              },
-              yaxis: { min: sensor.min, max: sensor.max, labels: { style: { fontSize: '10px', colors: '#94A3B8' }, formatter: v => v !== undefined ? v.toFixed(0) : '' } },
-              colors: [sensor.color],
-              fill: isBar ? { opacity: 0.85 } : { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.02, stops: [0, 100] } },
-              plotOptions: isBar ? { bar: { borderRadius: 4, columnWidth: '60%' } } : {},
-              grid: { borderColor: '#F1F5F9', strokeDashArray: 4, xaxis: { lines: { show: false } }, yaxis: { lines: { show: true } }, padding: { top: -10, right: 8, bottom: 0, left: 8 } },
-              dataLabels: { enabled: false },
-              tooltip: { theme: 'light', y: { formatter: v => `${v} ${sensor.unit}` } },
-              markers: isBar ? {} : { size: 3, colors: [sensor.color], strokeColors: '#fff', strokeWidth: 2, hover: { size: 5 } },
-              legend: { show: false },
-            };
-            return (
-              <div key={sensor.key} style={s.chartCard}>
-                <div style={s.chartHeader}>
-                  <div style={{ ...s.chartIconBadge, background: sensor.color + '15' }}>
-                    <span style={{ color: sensor.color, fontSize: 14 }}>{sensor.icon}</span>
-                  </div>
-                  <div>
-                    <p style={s.chartLabel}>{sensor.label}</p>
-                    <p style={{ ...s.chartCurrentVal, color: sensor.color }}>
-                      {lastMeasure[sensor.key] !== undefined ? lastMeasure[sensor.key] : '—'}
-                      <span style={s.chartUnit}> {sensor.unit}</span>
-                    </p>
-                  </div>
-                  <span style={{ ...s.chartTypeBadge, background: isBar ? '#FEF3C7' : '#EFF6FF', color: isBar ? '#92400E' : '#1D4ED8' }}>
-                    {isBar ? 'Barres' : 'Courbe'}
-                  </span>
-                </div>
-                <Chart options={options} series={[{ name: sensor.label, data: chartData }]} type={isBar ? 'bar' : 'area'} height={190} />
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      )}
 
-      <div style={{ marginTop: 36 }}>
-        <div style={s.sectionHeader}>
-          <div style={s.sectionDot} /><h2 style={s.sectionTitle}>Produits associés</h2>
-        </div>
-        <div style={{ display: 'grid', gap: 10 }}>
-          {products.filter(p => p.farmId === farm.id).length > 0
-            ? products.filter(p => p.farmId === farm.id).map(p => <ProductRow key={p.id} product={p} />)
-            : <p style={{ color: '#94A3B8', padding: '20px 0' }}>Aucun produit pour cette ferme.</p>}
-        </div>
-      </div>
+      {showEditModal && (
+       <EditFarmModal
+  farm={farm}
+  onClose={() => setShowEditModal(false)}
+  onSuccess={(updatedFarm) => {
+    if (onFarmUpdate) onFarmUpdate(updatedFarm);
+  }}
+/>
+      )}
     </div>
   );
-};
-
-const pill = (bg, text) => ({ background: bg, color: text, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20, display: 'inline-block' });
-
-const s = {
-  root: { padding: '10px 0', fontFamily: "'Inter', system-ui, sans-serif" },
-  topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 },
-  backBtn: { background: '#fff', border: '1px solid #E2E8F0', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 600, color: '#475569', boxShadow: '0 1px 2px rgba(0,0,0,0.06)' },
-  syncInfo: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#94A3B8' },
-  syncTime: { color: '#CBD5E1' },
-  heroCard: { position: 'relative', borderRadius: 20, overflow: 'hidden', marginBottom: 28, boxShadow: '0 4px 20px rgba(34,197,94,0.12)' },
-  heroBg: { position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #14532D 0%, #166534 40%, #15803D 100%)', zIndex: 0 },
-  heroInner: { position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 20, padding: '28px 32px', flexWrap: 'wrap' },
-  iconCircle: { width: 64, height: 64, background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', borderRadius: 18, border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: '#fff', flexShrink: 0 },
-  heroSub: { margin: 0, fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: '0.08em' },
-  heroTitle: { margin: '4px 0 0', fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' },
-  sectionHeader: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 },
-  sectionDot: { width: 6, height: 6, borderRadius: '50%', background: '#22C55E', flexShrink: 0 },
-  sectionTitle: { fontSize: 16, fontWeight: 700, color: '#1E293B', margin: 0, letterSpacing: '-0.01em' },
-  skeleton: { padding: 30, textAlign: 'center', background: '#F8FAFC', borderRadius: 14, color: '#CBD5E1' },
-  metricsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 },
-  metricCard: { background: '#fff', border: '1px solid #F1F5F9', borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' },
-  metricIconWrap: { width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  metricLabel: { margin: 0, fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' },
-  metricValue: { margin: '3px 0 8px', fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 },
-  metricUnit: { fontSize: 12, fontWeight: 400, marginLeft: 3, color: '#94A3B8' },
-  progressTrack: { height: 3, background: '#F1F5F9', borderRadius: 99, overflow: 'hidden' },
-  progressBar: { height: '100%', borderRadius: 99, transition: 'width 0.6s ease' },
-  chartsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 20 },
-  chartCard: { background: '#fff', border: '1px solid #F1F5F9', borderRadius: 18, padding: '16px 16px 8px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden' },
-  chartHeader: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 },
-  chartIconBadge: { width: 34, height: 34, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  chartLabel: { margin: 0, fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em' },
-  chartCurrentVal: { margin: 0, fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em' },
-  chartUnit: { fontSize: 11, fontWeight: 400, color: '#94A3B8' },
-  chartTypeBadge: { marginLeft: 'auto', fontSize: 10, fontWeight: 600, padding: '3px 8px', borderRadius: 6, flexShrink: 0 },
 };
 
 export default FarmDetail;

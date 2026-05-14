@@ -663,10 +663,7 @@ const Profile = () => {
                             latestRequest.createdAt,
                           ).toLocaleDateString()}
                         </p>
-                        <p style={{ fontSize: "14px", marginTop: "8px" }}>
-                          <strong>Ferme :</strong> {latestRequest.farmName}
-                        </p>
-
+                      
                         {/* Si approuvé mais isProducteur n'est pas encore mis à jour dans le profil, on peut aussi rediriger ici */}
                         {latestRequest.status === "APPROVED" && (
                           <button
