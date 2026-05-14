@@ -10,6 +10,7 @@ router.post('/', upload.array('images', 5), farmController.createFarm);
 router.get('/', farmController.getUserFarms);
 router.get('/:id', farmController.getFarmById);
 router.put('/:id', upload.array('images', 5), farmController.updateFarm);
+router.patch('/:id', upload.array('images', 5), farmController.updateFarm);
 router.delete('/:id', farmController.deleteFarm);
 
 export default router;
