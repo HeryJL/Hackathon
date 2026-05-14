@@ -56,11 +56,15 @@ const FarmDetail = ({ farm, products, onBack, onFarmUpdate }) => {
     alerts.forEach(a => addAlert(a));
   }, [addAlert]);
 
-  const { reconnect } = useNodeRedWS({
-    entity: farm?.entity,
-    onMessage: handleMessage,
-    onStatus: setWsStatus,
-  });
+const wsBaseUrl = 'ws://localhost:1880/ws';
+const farmSlug = farm?.entity || farm?.nom;
+const wsUrl = farmSlug ? `${wsBaseUrl}/${encodeURIComponent(farmSlug.toLowerCase().replace(/\s+/g, '_'))}` : null;
+
+const { reconnect } = useNodeRedWS({
+  url: wsUrl,
+  onMessage: handleMessage,
+  onStatus: setWsStatus,
+});
 
   useEffect(() => {
     setHistory([]);

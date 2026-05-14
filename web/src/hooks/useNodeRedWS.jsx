@@ -1,10 +1,7 @@
-/* eslint-disable react-hooks/immutability */
 // src/components/FarmDetail/hooks/useNodeRedWS.js
 import { useRef, useEffect, useCallback } from 'react';
 
-const WS_URL = 'ws://localhost:1880/ws/sensor';
-
-export  default function useNodeRedWS({ entity, onMessage, onStatus }) {
+export default function useNodeRedWS({ url, onMessage, onStatus }) {
   const wsRef      = useRef(null);
   const retryRef   = useRef(null);
   const retryCount = useRef(0);
@@ -15,23 +12,30 @@ export  default function useNodeRedWS({ entity, onMessage, onStatus }) {
   useEffect(() => { onSt.current  = onStatus;  }, [onStatus]);
 
   const connect = useCallback(() => {
+    if (!url) return; // pas d'URL, on ne tente pas
+
     clearTimeout(retryRef.current);
-    if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); }
+    if (wsRef.current) {
+      wsRef.current.onclose = null;
+      wsRef.current.close();
+    }
 
     onSt.current('connecting');
-    const ws = new WebSocket(WS_URL);
+    const ws = new WebSocket(url);
     wsRef.current = ws;
 
-    ws.onopen = () => { retryCount.current = 0; onSt.current('connected'); };
+    ws.onopen = () => {
+      retryCount.current = 0;
+      onSt.current('connected');
+    };
 
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(ev.data);
-        // Filtre : accepte si entity correspond OU si pas de entity dans le payload
-        if (data.entity && entity && data.entity.toLowerCase() !== entity.toLowerCase()) return;
+        // Plus besoin de filtre par entity car l'URL est spécifique à la ferme
         onMsg.current({ ...data, ts: data.ts ?? new Date().toISOString() });
       } catch {
-        /* ignore non-JSON */
+        // ignore non-JSON
       }
     };
 
@@ -43,13 +47,16 @@ export  default function useNodeRedWS({ entity, onMessage, onStatus }) {
       retryCount.current++;
       retryRef.current = setTimeout(connect, delay);
     };
-  }, [entity]);
+  }, [url, onSt, onMsg]);
 
   useEffect(() => {
     connect();
     return () => {
       clearTimeout(retryRef.current);
-      if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); }
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+      }
     };
   }, [connect]);
 
